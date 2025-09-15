@@ -1,0 +1,33 @@
+apiVersion: gateway-cd.io/v1alpha1
+kind: CanaryDeployment
+metadata:
+  name: sample-app-canary
+  namespace: default
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sample-app-canary
+  service:
+    name: sample-app
+    port: 80
+  gateway:
+    httpRoute: sample-app-route
+    gateway: sample-gateway
+    namespace: default
+  trafficSplit:
+  - weight: 10
+    duration: 30s
+  - weight: 25
+    duration: 30s
+  - weight: 50
+    duration: 30s
+  - weight: 75
+    duration: 30s
+  - weight: 100
+    duration: 30s
+  analysis:
+    successRate: 0.95
+    maxLatency: 500
+    analysisInterval: 15s
+  autoPromote: false

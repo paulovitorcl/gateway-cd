@@ -1,0 +1,56 @@
+apiVersion: gateway-cd.io/v1alpha1
+kind: CanaryDeployment
+metadata:
+  name: sample-app-canary
+  namespace: default
+spec:
+  # Target workload to canary
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sample-app
+
+  # Service configuration
+  service:
+    name: sample-app-service
+    port: 80
+
+  # Gateway API configuration
+  gateway:
+    httpRoute: sample-app-route
+    namespace: default
+
+  # Traffic splitting strategy
+  trafficSplit:
+    - weight: 10
+      duration: "2m"
+      pause: false
+    - weight: 25
+      duration: "2m"
+      pause: false
+    - weight: 50
+      duration: "5m"
+      pause: true  # Manual approval required
+    - weight: 100
+      pause: false
+
+  # Analysis configuration
+  analysis:
+    successRate: 0.95
+    maxLatency: 500
+    analysisInterval: "30s"
+    metrics:
+      - name: "error-rate"
+        query: "sum(rate(http_requests_total{service=\"{{.CanaryService}}\",code=~\"5..\"}[2m])) / sum(rate(http_requests_total{service=\"{{.CanaryService}}\"}[2m]))"
+        threshold: 0.05
+        operator: "<"
+      - name: "latency-p95"
+        query: "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"{{.CanaryService}}\"}[2m])) by (le))"
+        threshold: 0.5
+        operator: "<"
+
+  # Auto-promote on success
+  autoPromote: false
+
+  # Skip analysis for testing
+  skipAnalysis: false

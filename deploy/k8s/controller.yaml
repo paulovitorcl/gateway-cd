@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-cd-controller
+  namespace: gateway-cd
+  labels:
+    app: gateway-cd-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-cd-controller
+  template:
+    metadata:
+      labels:
+        app: gateway-cd-controller
+    spec:
+      serviceAccountName: gateway-cd-controller
+      containers:
+      - name: controller
+        image: gateway-cd-controller:latest
+        imagePullPolicy: IfNotPresent
+        args:
+        - --leader-elect
+        - --prometheus-url=http://prometheus:9090
+        env:
+        - name: WATCH_NAMESPACE
+          value: ""
+        ports:
+        - containerPort: 8080
+          name: metrics
+        - containerPort: 8081
+          name: health
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 10

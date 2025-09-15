@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-app-stable
+  namespace: default
+  labels:
+    app: sample-app
+    version: stable
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sample-app
+      version: stable
+  template:
+    metadata:
+      labels:
+        app: sample-app
+        version: stable
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+        env:
+        - name: VERSION
+          value: "stable"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sample-app-canary
+  namespace: default
+  labels:
+    app: sample-app
+    version: canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sample-app
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: sample-app
+        version: canary
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.22
+        ports:
+        - containerPort: 80
+        env:
+        - name: VERSION
+          value: "canary"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-app-stable
+  namespace: default
+spec:
+  selector:
+    app: sample-app
+    version: stable
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-app-canary
+  namespace: default
+spec:
+  selector:
+    app: sample-app
+    version: canary
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sample-app
+  namespace: default
+spec:
+  selector:
+    app: sample-app
+  ports:
+  - port: 80
+    targetPort: 80

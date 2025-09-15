@@ -1,0 +1,328 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: canarydeployments.gateway-cd.io
+spec:
+  group: gateway-cd.io
+  names:
+    kind: CanaryDeployment
+    listKind: CanaryDeploymentList
+    plural: canarydeployments
+    shortNames:
+    - canary
+    singular: canarydeployment
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.canaryWeight
+      name: Canary Weight
+      type: integer
+    - jsonPath: .status.currentStep
+      name: Step
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CanaryDeployment is the Schema for the canarydeployments API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal version, and may reject unrecognized values.'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to.'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CanaryDeploymentSpec defines the desired state of CanaryDeployment
+            properties:
+              analysis:
+                description: Analysis defines success criteria and rollback conditions
+                properties:
+                  analysisInterval:
+                    description: AnalysisInterval is how often to run analysis
+                    type: string
+                  maxLatency:
+                    description: MaxLatency is the maximum acceptable latency in milliseconds
+                    format: int32
+                    type: integer
+                  metrics:
+                    description: Metrics to evaluate during canary analysis
+                    items:
+                      description: AnalysisMetric defines a metric to monitor during
+                        canary analysis
+                      properties:
+                        name:
+                          description: Name of the metric
+                          type: string
+                        operator:
+                          description: 'Operator is the comparison operator (>, <,
+                            >=, <=, ==, !=)'
+                          type: string
+                        query:
+                          description: Query is the Prometheus query to execute
+                          type: string
+                        threshold:
+                          description: Threshold is the threshold value for this metric
+                          type: number
+                      required:
+                      - name
+                      - operator
+                      - query
+                      - threshold
+                      type: object
+                    type: array
+                  successRate:
+                    description: SuccessRate is the minimum success rate threshold
+                      (0.0-1.0)
+                    type: number
+                type: object
+              autoPromote:
+                description: AutoPromote automatically promotes canary to stable if
+                  analysis succeeds
+                type: boolean
+              gateway:
+                description: Gateway configuration for traffic management
+                properties:
+                  gateway:
+                    description: Gateway is the name of the Gateway (optional)
+                    type: string
+                  httpRoute:
+                    description: HTTPRoute is the name of the HTTPRoute to manage
+                    type: string
+                  namespace:
+                    description: Namespace is the namespace of the Gateway API resources
+                    type: string
+                required:
+                - httpRoute
+                type: object
+              service:
+                description: Service is the Kubernetes service associated with the
+                  workload
+                properties:
+                  name:
+                    description: Name of the service
+                    type: string
+                  port:
+                    description: Port is the service port to use for canary traffic
+                    format: int32
+                    type: integer
+                required:
+                - name
+                - port
+                type: object
+              skipAnalysis:
+                description: SkipAnalysis skips canary analysis (useful for testing)
+                type: boolean
+              targetRef:
+                description: TargetRef references the target workload for canary deployment
+                properties:
+                  apiVersion:
+                    description: APIVersion of the target workload
+                    type: string
+                  kind:
+                    description: Kind of the target workload (Deployment, ReplicaSet,
+                      etc.)
+                    type: string
+                  name:
+                    description: Name of the target workload
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+              trafficSplit:
+                description: TrafficSplit defines the traffic splitting strategy
+                items:
+                  description: TrafficSplitStep defines a traffic split configuration
+                  properties:
+                    duration:
+                      description: Duration is how long to maintain this weight before
+                        moving to next step
+                      type: string
+                    pause:
+                      description: Pause indicates whether to pause at this step for
+                        manual approval
+                      type: boolean
+                    weight:
+                      description: Weight is the percentage of traffic to route to
+                        canary version (0-100)
+                      format: int32
+                      type: integer
+                  required:
+                  - weight
+                  type: object
+                type: array
+            required:
+            - gateway
+            - service
+            - targetRef
+            - trafficSplit
+            type: object
+          status:
+            description: CanaryDeploymentStatus defines the observed state of CanaryDeployment
+            properties:
+              analysisRun:
+                description: Analysis results from the current or last analysis run
+                properties:
+                  averageLatency:
+                    description: AverageLatency observed during analysis
+                    format: int32
+                    type: integer
+                  completedAt:
+                    description: CompletedAt is when the analysis run completed
+                    format: date-time
+                    type: string
+                  metricResults:
+                    description: MetricResults contains results for each configured
+                      metric
+                    items:
+                      description: MetricResult contains the result of evaluating
+                        a specific metric
+                      properties:
+                        name:
+                          description: Name of the metric
+                          type: string
+                        passed:
+                          description: Passed indicates whether the metric passed
+                            the threshold check
+                          type: boolean
+                        threshold:
+                          description: Threshold is the configured threshold
+                          type: number
+                        value:
+                          description: Value is the measured value
+                          type: number
+                      required:
+                      - name
+                      - passed
+                      - threshold
+                      - value
+                      type: object
+                    type: array
+                  phase:
+                    description: Phase of the analysis run
+                    type: string
+                  startedAt:
+                    description: StartedAt is when the analysis run started
+                    format: date-time
+                    type: string
+                  successRate:
+                    description: SuccessRate observed during analysis
+                    type: number
+                type: object
+              canaryWeight:
+                description: CanaryWeight is the current percentage of traffic routed
+                  to canary
+                format: int32
+                type: integer
+              conditions:
+                description: Conditions represent the latest available observations
+                items:
+                  description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                  properties:
+                    lastTransitionTime:
+                      description: lastTransitionTime is the last time the condition
+                        transitioned from one status to another. This should be when
+                        the underlying condition changed.  If that is not known, then
+                        using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: message is a human readable message indicating
+                        details about the transition. This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: observedGeneration represents the .metadata.generation
+                        that the condition was set based upon. For instance, if .metadata.generation
+                        is currently 12, but the .status.conditions[x].observedGeneration
+                        is 9, the condition is out of date with respect to the current
+                        state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: reason contains a programmatic identifier indicating
+                        the reason for the condition's last transition. Producers
+                        of specific condition types may define expected values and
+                        meanings for this field, and whether the values are considered
+                        a guaranteed API. The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                        --- Many .condition.type values are consistent across resources
+                        like Available, but because arbitrary conditions can be useful
+                        (see .node.status.conditions), the ability to deconflict is
+                        important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              currentStep:
+                description: CurrentStep is the index of the current traffic split
+                  step
+                format: int32
+                type: integer
+              lastTransitionTime:
+                description: LastTransitionTime is when the current phase was entered
+                format: date-time
+                type: string
+              message:
+                description: Message provides human-readable details about the current
+                  state
+                type: string
+              phase:
+                description: Phase is the current phase of the canary deployment
+                type: string
+              stableWeight:
+                description: StableWeight is the current percentage of traffic routed
+                  to stable
+                format: int32
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
